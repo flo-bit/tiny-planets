@@ -1,0 +1,183 @@
+{
+  "asset": {
+    "generator": "FBX2glTF v0.9.7",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "buffers": [
+    {
+      "byteLength": 3648,
+      "uri": "data:application/octet-stream;base64,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"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 360,
+      "byteOffset": 0,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 1428,
+      "byteOffset": 360,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 1428,
+      "byteOffset": 1788,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 48,
+      "byteOffset": 3216,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 192,
+      "byteOffset": 3264,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 192,
+      "byteOffset": 3456,
+      "target": 34962
+    }
+  ],
+  "scenes": [
+    {
+      "name": "Root Scene",
+      "nodes": [0]
+    }
+  ],
+  "accessors": [
+    {
+      "componentType": 5123,
+      "type": "SCALAR",
+      "count": 180,
+      "bufferView": 0,
+      "byteOffset": 0
+    },
+    {
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 119,
+      "bufferView": 1,
+      "byteOffset": 0,
+      "min": [-0.00460758898407221, -0.0051399040967226, -2.04484495043289e-5],
+      "max": [0.00277600181289017, 0.00288593070581555, 0.0055465642362833]
+    },
+    {
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 119,
+      "bufferView": 2,
+      "byteOffset": 0
+    },
+    {
+      "componentType": 5123,
+      "type": "SCALAR",
+      "count": 24,
+      "bufferView": 3,
+      "byteOffset": 0
+    },
+    {
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 16,
+      "bufferView": 4,
+      "byteOffset": 0,
+      "min": [-0.00393270514905453, -0.00452125817537308, 0.00076990999514237],
+      "max": [0.00185010500717908, 0.0015675654867664, 0.0055465642362833]
+    },
+    {
+      "componentType": 5126,
+      "type": "VEC3",
+      "count": 16,
+      "bufferView": 5,
+      "byteOffset": 0
+    }
+  ],
+  "samplers": [{}],
+  "materials": [
+    {
+      "name": "Gray",
+      "alphaMode": "OPAQUE",
+      "extras": {
+        "fromFBX": {
+          "shadingModel": "Phong",
+          "isTruePBR": false
+        }
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.195368975400925, 0.206609711050987, 0.242556169629097, 1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Green",
+      "alphaMode": "OPAQUE",
+      "extras": {
+        "fromFBX": {
+          "shadingModel": "Phong",
+          "isTruePBR": false
+        }
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.069953553378582, 0.12185650318861, 0.0478881113231182, 1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Rock_Moss_3",
+      "primitives": [
+        {
+          "material": 0,
+          "mode": 4,
+          "attributes": {
+            "NORMAL": 2,
+            "POSITION": 1
+          },
+          "indices": 0
+        },
+        {
+          "material": 1,
+          "mode": 4,
+          "attributes": {
+            "NORMAL": 5,
+            "POSITION": 4
+          },
+          "indices": 3
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "RootNode",
+      "translation": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale": [1.0, 1.0, 1.0],
+      "children": [1]
+    },
+    {
+      "name": "Rock_Moss_3",
+      "translation": [0.0, 0.0, 0.0],
+      "rotation": [-0.707106828689575, 0.0, 0.0, 0.707106709480286],
+      "scale": [100.0, 100.0, 100.0],
+      "mesh": 0
+    }
+  ]
+}

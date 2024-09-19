@@ -6,5 +6,5 @@ export default defineConfig({
   build: {
     target: "esnext",
   },
-  base: "tiny-planets",
+  base: "/tiny-planets",
 });

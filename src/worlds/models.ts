@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+const basePath = "/tiny-planets/";
+
 const lowPolyNatureCollectionModels: Record<
   string,
   { versions?: number; materials: string[] }
@@ -101,10 +103,12 @@ export function getModelPathsAndMaterials(
   const filePaths: string[] = [];
   if (model.versions) {
     for (let i = 1; i <= model.versions; i++) {
-      filePaths.push(`${collections[collection].name}/${name}_${i}.gltf`);
+      filePaths.push(
+        `${basePath}${collections[collection].name}/${name}_${i}.gltf`,
+      );
     }
   } else {
-    filePaths.push(`${collections[collection].name}/${name}.gltf`);
+    filePaths.push(`${basePath}${collections[collection].name}/${name}.gltf`);
   }
 
   return {
@@ -135,8 +139,8 @@ export async function loadModels(
           };
           gltf.scene.traverse((child) => {
             if (child instanceof THREE.Mesh) {
-              child.castShadow = true;
               child.receiveShadow = true;
+              child.castShadow = false;
             }
           });
           resolve(gltf.scene);

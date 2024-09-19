@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Planet } from "./worlds/planet";
 
+const presets = ["beach", "forest", "snowForest"];
+
 const width = window.innerWidth,
   height = window.innerHeight;
 
@@ -23,7 +25,6 @@ const renderer = new THREE.WebGLRenderer({
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.VSMShadowMap;
 
 const _ = new OrbitControls(camera, renderer.domElement);
 
@@ -40,16 +41,15 @@ scene.add(planetMesh);
 
 const light = new THREE.DirectionalLight();
 light.intensity = 2;
-light.position.set(0, 1, 2);
+light.position.set(2, 1, 0);
 scene.add(light);
 light.castShadow = true;
-light.shadow.mapSize.width = 256;
-light.shadow.mapSize.height = 256;
+light.shadow.mapSize.width = 512;
+light.shadow.mapSize.height = 512;
 light.shadow.camera.far = 10;
 light.shadow.camera.near = 0.1;
 
-light.shadow.intensity = 0.7;
-light.shadow.bias = -0.001;
+light.shadow.bias = 0.01;
 light.shadow.camera.top = 2;
 light.shadow.camera.right = 2;
 light.shadow.camera.bottom = -2;
@@ -88,7 +88,21 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-async function createPlanet(preset: string = "snowForest") {
+// button press
+let button = document.getElementById("button");
+if (button) {
+  console.log("Button found");
+  button.addEventListener("click", () => {
+    let randomPreset = presets[Math.floor(Math.random() * presets.length)];
+    createPlanet(randomPreset);
+  });
+}
+
+async function createPlanet(preset: string | undefined = undefined) {
+  if (!preset) {
+    preset = presets[Math.floor(Math.random() * presets.length)];
+  }
+
   console.time("planet");
   const planet = new Planet({ preset });
   let mesh = await planet.create();

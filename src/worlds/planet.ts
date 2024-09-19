@@ -104,7 +104,6 @@ export class Planet {
         }),
       );
       planetMesh.castShadow = true;
-      planetMesh.receiveShadow = true;
 
       const oceanMesh = new Mesh(
         oceanGeometry,
@@ -175,6 +174,8 @@ export class Planet {
               child.material.roughness = 0.2;
               child.material.color.setHex(0xffffff);
             }
+            child.castShadow = false;
+            child.receiveShadow = true;
           }
         });
         planet.add(model);

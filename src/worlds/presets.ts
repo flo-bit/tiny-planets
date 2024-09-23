@@ -25,13 +25,13 @@ const beach: BiomeOptions = {
 
   seaColors: [
     [-1, 0x000066],
-    [-0.52, 0x0000aa],
+    [-0.55, 0x0000aa],
     [-0.1, 0x00f2e5],
   ],
   seaNoise: {
-    min: -0.005,
-    max: 0.005,
-    scale: 5,
+    min: -0.008,
+    max: 0.008,
+    scale: 6,
   },
 
   vegetation: {

@@ -58,6 +58,7 @@ light.shadow.camera.left = -2;
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
 
+
 let total = 0;
 let lastDelta = 0;
 renderer.setAnimationLoop((delta) => {
@@ -72,7 +73,7 @@ renderer.setAnimationLoop((delta) => {
 
   if (!hasPlanet) {
     console.log("Creating planet");
-    createPlanet();
+    createPlanet("beach");
     hasPlanet = true;
   }
 });
@@ -104,7 +105,10 @@ async function createPlanet(preset: string | undefined = undefined) {
   }
 
   console.time("planet");
-  const planet = new Planet({ preset });
+  const planet = new Planet({
+    detail: 50,
+    biome: { preset },
+  });
   let mesh = await planet.create();
   scene.remove(planetMesh);
   scene.add(mesh);

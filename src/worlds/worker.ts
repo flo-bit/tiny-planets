@@ -1,4 +1,9 @@
-import { IcosahedronGeometry, Vector3, BufferAttribute } from "three";
+import {
+  IcosahedronGeometry,
+  Vector3,
+  BufferAttribute,
+  Float32BufferAttribute,
+} from "three";
 
 import { Biome, type BiomeOptions } from "./biome";
 import { type PlanetOptions } from "./planet";
@@ -17,6 +22,10 @@ onmessage = function (e) {
     const oceanPositions = oceanGeometry.getAttribute("position").array.buffer;
     const oceanColors = oceanGeometry.getAttribute("color").array.buffer;
     const oceanNormals = oceanGeometry.getAttribute("normal").array.buffer;
+    const oceanMorphPositions =
+      oceanGeometry.morphAttributes.position[0].array.buffer;
+    const oceanMorphNormals =
+      oceanGeometry.morphAttributes.normal[0].array.buffer;
 
     postMessage(
       {
@@ -29,28 +38,35 @@ onmessage = function (e) {
           oceanColors,
           oceanNormals,
           vegetation,
+          oceanMorphPositions,
+          oceanMorphNormals,
         },
         requestId,
       },
       // @ts-expect-error - hmm
-      [positions, colors, normals, oceanPositions, oceanColors, oceanNormals],
+      [
+        positions,
+        colors,
+        normals,
+        oceanPositions,
+        oceanColors,
+        oceanNormals,
+        oceanMorphPositions,
+        oceanMorphNormals,
+      ],
     );
   } else {
     console.error("Unknown message type", type);
   }
 };
 
-function createGeometry({
-  biomeOptions,
-  planetOptions,
-}: {
-  biomeOptions: BiomeOptions;
-  planetOptions: PlanetOptions;
-}): [IcosahedronGeometry, IcosahedronGeometry, Record<string, Vector3[]>] {
+function createGeometry(
+  planetOptions: PlanetOptions,
+): [IcosahedronGeometry, IcosahedronGeometry, Record<string, Vector3[]>] {
   const sphere = new IcosahedronGeometry(1, planetOptions.detail ?? 50);
   const oceanSphere = new IcosahedronGeometry(1, planetOptions.detail ?? 50);
 
-  const biome = new Biome(biomeOptions);
+  const biome = new Biome(planetOptions.biome);
 
   const vertices = sphere.getAttribute("position");
   const oceanVertices = oceanSphere.getAttribute("position");
@@ -62,8 +78,10 @@ function createGeometry({
     string,
     {
       height: number;
-      seaHeight: number;
       scatter: Vector3;
+
+      seaHeight: number;
+      seaMorph: number;
     }
   >();
 
@@ -84,7 +102,7 @@ function createGeometry({
   b.fromBufferAttribute(vertices, 1);
 
   // default to scatter = distance of first edge
-  const scatterAmount = planetOptions.scatter ?? b.distanceTo(a);
+  const scatterAmount = (planetOptions.scatter ?? 1) * b.distanceTo(a);
   const scatterScale = 100;
 
   const scatterNoise = new UberNoise({
@@ -94,10 +112,29 @@ function createGeometry({
     seed: 0,
   });
 
+  oceanSphere.morphAttributes.position = [];
+  oceanSphere.morphAttributes.normal = [];
+
+  const oceanMorphPositions: number[] = [];
+  const oceanMorphNormals: number[] = [];
+
+  const oceanA = new Vector3(),
+    oceanB = new Vector3(),
+    oceanC = new Vector3(),
+    oceanD = new Vector3(),
+    oceanE = new Vector3(),
+    oceanF = new Vector3();
+
+  const temp = new Vector3();
+
   for (let i = 0; i < vertices.count; i += 3) {
     a.fromBufferAttribute(vertices, i);
     b.fromBufferAttribute(vertices, i + 1);
     c.fromBufferAttribute(vertices, i + 2);
+
+    oceanA.fromBufferAttribute(oceanVertices, i);
+    oceanB.fromBufferAttribute(oceanVertices, i + 1);
+    oceanC.fromBufferAttribute(oceanVertices, i + 2);
 
     mid.set(0, 0, 0);
     mid.addVectors(a, b).add(c).divideScalar(3);
@@ -108,6 +145,7 @@ function createGeometry({
       let v = a;
       if (j === 1) v = b;
       if (j === 2) v = c;
+
       const key = `${v.x.toFixed(5)},${v.y.toFixed(5)},${v.z.toFixed(5)}`;
 
       let move = calculatedVertices.get(key);
@@ -126,21 +164,39 @@ function createGeometry({
           v.y - scatterScale * 200,
         );
         const seaHeight = biome.getSeaHeight(v) + 1;
+        const secondSeaHeight = biome.getSeaHeight(v.addScalar(100)) + 1;
+
+        v.subScalar(100);
 
         move = {
           height,
           scatter: new Vector3(scatterX, scatterY, scatterZ),
           seaHeight,
+          seaMorph: secondSeaHeight,
         };
         calculatedVertices.set(key, move);
       }
 
       normalizedHeight += move.height - 1;
       v.add(move.scatter).normalize().multiplyScalar(move.height);
-
       vertices.setXYZ(i + j, v.x, v.y, v.z);
 
-      const oceanV = v.clone().normalize().multiplyScalar(move.seaHeight);
+      let oceanV = oceanA;
+      if (j === 1) oceanV = oceanB;
+      if (j === 2) oceanV = oceanC;
+
+      oceanV.add(move.scatter).normalize().multiplyScalar(move.seaMorph);
+      oceanMorphPositions.push(oceanV.x, oceanV.y, oceanV.z);
+
+      if (j === 0) {
+        oceanD.copy(oceanV);
+      } else if (j === 1) {
+        oceanE.copy(oceanV);
+      } else if (j === 2) {
+        oceanF.copy(oceanV);
+      }
+
+      oceanV.normalize().multiplyScalar(move.seaHeight);
       oceanVertices.setXYZ(i + j, oceanV.x, oceanV.y, oceanV.z);
     }
 
@@ -182,17 +238,16 @@ function createGeometry({
     }
 
     // calculate new normal
-    const normal = new Vector3();
-    normal.crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
+    temp.crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
 
     // flat shading, so all normals for the face are the same
-    normals.setXYZ(i, normal.x, normal.y, normal.z);
-    normals.setXYZ(i + 1, normal.x, normal.y, normal.z);
-    normals.setXYZ(i + 2, normal.x, normal.y, normal.z);
+    normals.setXYZ(i, temp.x, temp.y, temp.z);
+    normals.setXYZ(i + 1, temp.x, temp.y, temp.z);
+    normals.setXYZ(i + 2, temp.x, temp.y, temp.z);
 
     // calculate steepness (acos of dot product of normal and up vector)
     // (up vector = old mid point on sphere)
-    const steepness = Math.acos(Math.abs(normal.dot(mid)));
+    const steepness = Math.acos(Math.abs(temp.dot(mid)));
     // steepness is between 0 and PI/2
 
     const color = biome.getColor(mid, normalizedHeight, steepness);
@@ -229,10 +284,32 @@ function createGeometry({
       oceanColors[i * 3 + 8] = oceanColor.b;
     }
 
-    oceanNormals.setXYZ(i, mid.x, mid.y, mid.z);
-    oceanNormals.setXYZ(i + 1, mid.x, mid.y, mid.z);
-    oceanNormals.setXYZ(i + 2, mid.x, mid.y, mid.z);
+    // calculate ocean normals
+    temp
+      .crossVectors(oceanB.clone().sub(oceanA), oceanC.clone().sub(oceanA))
+      .normalize();
+
+    oceanNormals.setXYZ(i, temp.x, temp.y, temp.z);
+    oceanNormals.setXYZ(i + 1, temp.x, temp.y, temp.z);
+    oceanNormals.setXYZ(i + 2, temp.x, temp.y, temp.z);
+
+    temp
+      .crossVectors(oceanE.clone().sub(oceanD), oceanF.clone().sub(oceanD))
+      .normalize();
+
+    oceanMorphNormals.push(temp.x, temp.y, temp.z);
+    oceanMorphNormals.push(temp.x, temp.y, temp.z);
+    oceanMorphNormals.push(temp.x, temp.y, temp.z);
   }
+
+  oceanSphere.morphAttributes.position[0] = new Float32BufferAttribute(
+    oceanMorphPositions,
+    3,
+  );
+  oceanSphere.morphAttributes.normal[0] = new Float32BufferAttribute(
+    oceanMorphNormals,
+    3,
+  );
 
   sphere.setAttribute("color", new BufferAttribute(colors, 3));
   oceanSphere.setAttribute("color", new BufferAttribute(oceanColors, 3));

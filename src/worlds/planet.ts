@@ -6,9 +6,13 @@ import {
   Object3D,
   Quaternion,
   Vector3,
+  IcosahedronGeometry,
 } from "three";
 import { Biome, type BiomeOptions } from "./biome";
 import { loadModels } from "./models";
+
+import oceansCausticMaterial from "./materials/OceanCausticsMaterial";
+import atmosphereMaterial from "./materials/AtmosphereMaterial";
 
 export type PlanetOptions = {
   scatter?: number;
@@ -16,6 +20,8 @@ export type PlanetOptions = {
   ground?: number;
 
   detail?: number;
+
+  biome?: BiomeOptions;
 };
 
 export class Planet {
@@ -31,10 +37,10 @@ export class Planet {
 
   vegetationPositions?: Record<string, Vector3[]>;
 
-  constructor(biomeOptions: BiomeOptions, planetOptions: PlanetOptions = {}) {
-    this.options = planetOptions;
+  constructor(options: PlanetOptions = {}) {
+    this.options = options;
 
-    this.biome = new Biome(biomeOptions);
+    this.biome = new Biome(options.biome);
     this.biomeOptions = this.biome.options;
 
     this.worker = new Worker(new URL("worker.ts", import.meta.url), {
@@ -56,6 +62,8 @@ export class Planet {
         oceanColors: number[];
         oceanNormals: number[];
         vegetation: Record<string, Vector3[]>;
+        oceanMorphPositions: number[];
+        oceanMorphNormals: number[];
       };
       requestId: number;
     };
@@ -92,18 +100,37 @@ export class Planet {
         "color",
         new Float32BufferAttribute(new Float32Array(data.oceanColors), 3),
       );
+      // set morph targets
+      oceanGeometry.morphAttributes.position = [
+        new Float32BufferAttribute(
+          new Float32Array(data.oceanMorphPositions),
+          3,
+        ),
+      ];
+      oceanGeometry.morphAttributes.normal = [
+        new Float32BufferAttribute(new Float32Array(data.oceanMorphNormals), 3),
+      ];
 
       oceanGeometry.computeVertexNormals();
 
       this.vegetationPositions = data.vegetation;
 
-      const planetMesh = new Mesh(
-        geometry,
-        new MeshStandardMaterial({
-          vertexColors: true,
-        }),
-      );
+      const planetMesh = new Mesh(geometry, oceansCausticMaterial);
       planetMesh.castShadow = true;
+
+      planetMesh.onBeforeRender = (
+        renderer,
+        scene,
+        camera,
+        geometry,
+        material,
+      ) => {
+        if (material.userData.shader?.uniforms?.time) {
+          material.userData.shader.uniforms.time.value =
+            performance.now() / 1000;
+        }
+        //material.userData.shader.uniforms.time.value = performance.now() / 1000;
+      };
 
       const oceanMesh = new Mesh(
         oceanGeometry,
@@ -117,6 +144,20 @@ export class Planet {
       );
 
       planetMesh.add(oceanMesh);
+      oceanMesh.onBeforeRender = (
+        renderer,
+        scene,
+        camera,
+        geometry,
+        material,
+      ) => {
+        // update morph targets
+        if (oceanMesh.morphTargetInfluences)
+          oceanMesh.morphTargetInfluences[0] =
+            Math.sin(performance.now() / 1000) * 0.5 + 0.5;
+      };
+
+      this.addAtmosphere(planetMesh);
       callback(planetMesh);
     }
 
@@ -124,6 +165,8 @@ export class Planet {
   }
 
   async create(): Promise<Mesh> {
+    // let collection = "stylized_nature";
+
     const models = this.biomeOptions.vegetation?.items.map((item) => {
       return item.name;
     });
@@ -131,7 +174,7 @@ export class Planet {
     const loaded: Promise<Object3D[] | Mesh>[] = [];
 
     for (const model of models ?? []) {
-      const loadedModels = loadModels(model);
+      const loadedModels = loadModels(model); //, collection);
       loaded.push(loadedModels);
     }
 
@@ -185,7 +228,7 @@ export class Planet {
     return planetPromise;
   }
 
-  createMesh(): Promise<Mesh> {
+  async createMesh(): Promise<Mesh> {
     return new Promise((resolve) => {
       const requestId = this.requestId++;
       this.callbacks[requestId] = resolve;
@@ -193,12 +236,17 @@ export class Planet {
       this.worker.postMessage({
         type: "createGeometry",
         requestId,
-        data: {
-          biomeOptions: this.biome.options,
-          planetOptions: this.options,
-        },
+        data: this.options,
       });
     });
+  }
+
+  addAtmosphere(planet: Mesh) {
+    // Create the atmosphere geometry
+    const atmosphereGeometry = new IcosahedronGeometry(1.2, 20);
+    const atmosphere = new Mesh(atmosphereGeometry, atmosphereMaterial);
+    atmosphere.renderOrder = 1;
+    planet.add(atmosphere);
   }
 
   updatePosition(item: Object3D, pos: Vector3) {

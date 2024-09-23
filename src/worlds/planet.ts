@@ -12,7 +12,7 @@ import { Biome, type BiomeOptions } from "./biome";
 import { loadModels } from "./models";
 
 import oceansCausticMaterial from "./materials/OceanCausticsMaterial";
-import atmosphereMaterial from "./materials/AtmosphereMaterial";
+import { createAtmosphereMaterial } from "./materials/AtmosphereMaterial";
 
 export type PlanetOptions = {
   scatter?: number;
@@ -20,6 +20,11 @@ export type PlanetOptions = {
   ground?: number;
 
   detail?: number;
+
+  atmosphere?: {
+    color?: Vector3;
+    height?: number;
+  };
 
   biome?: BiomeOptions;
 };
@@ -100,6 +105,10 @@ export class Planet {
         "color",
         new Float32BufferAttribute(new Float32Array(data.oceanColors), 3),
       );
+      oceanGeometry.setAttribute(
+        "normal",
+        new Float32BufferAttribute(new Float32Array(data.oceanNormals), 3),
+      );
       // set morph targets
       oceanGeometry.morphAttributes.position = [
         new Float32BufferAttribute(
@@ -110,8 +119,6 @@ export class Planet {
       oceanGeometry.morphAttributes.normal = [
         new Float32BufferAttribute(new Float32Array(data.oceanMorphNormals), 3),
       ];
-
-      oceanGeometry.computeVertexNormals();
 
       this.vegetationPositions = data.vegetation;
 
@@ -243,8 +250,14 @@ export class Planet {
 
   addAtmosphere(planet: Mesh) {
     // Create the atmosphere geometry
-    const atmosphereGeometry = new IcosahedronGeometry(1.2, 20);
-    const atmosphere = new Mesh(atmosphereGeometry, atmosphereMaterial);
+    const atmosphereGeometry = new IcosahedronGeometry(
+      this.options.atmosphere?.height ?? 1.2,
+      this.options.detail ?? 20,
+    );
+    const atmosphere = new Mesh(
+      atmosphereGeometry,
+      createAtmosphereMaterial(this.options.atmosphere?.color),
+    );
     atmosphere.renderOrder = 1;
     planet.add(atmosphere);
   }

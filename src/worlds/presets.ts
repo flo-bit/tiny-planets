@@ -31,8 +31,7 @@ const beach: BiomeOptions = {
   seaNoise: {
     min: -0.008,
     max: 0.008,
-    scale: 8,
-    octaves: 2,
+    scale: 6,
   },
 
   vegetation: {

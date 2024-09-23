@@ -105,7 +105,10 @@ async function createPlanet(preset: string | undefined = undefined) {
   }
 
   console.time("planet");
-  const planet = new Planet({ biome: { preset } });
+  const planet = new Planet({
+    detail: 50,
+    biome: { preset },
+  });
   let mesh = await planet.create();
   scene.remove(planetMesh);
   scene.add(mesh);

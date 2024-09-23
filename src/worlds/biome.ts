@@ -6,6 +6,22 @@ import {
   type ColorGradientOptions,
 } from "./helper/colorgradient";
 import { biomePresets } from "./presets";
+import { Octree } from "./helper/octree";
+
+export type VegetationItem = {
+  name: string;
+  density: number;
+
+  minimumHeight?: number;
+  maximumHeight?: number;
+
+  minimumSlope?: number;
+  maximumSlope?: number;
+
+  minimumDistance?: number;
+  maximumDistance?: number;
+  colors?: Record<string, { array?: number[] }>;
+};
 
 export type BiomeOptions = {
   name?: string;
@@ -21,17 +37,10 @@ export type BiomeOptions = {
   tintColor?: number;
 
   vegetation?: {
-    items: {
-      name: string;
-      density: number;
-
-      minimumHeight?: number;
-      maximumHeight?: number;
-
-      minimumDistance?: number;
-      maximumDistance?: number;
-      colors?: Record<string, { array?: number[] }>;
-    }[];
+    defaults?: {
+      density?: number;
+    };
+    items: VegetationItem[];
   };
 };
 
@@ -43,6 +52,8 @@ export class Biome {
   seaColors: ColorGradient | undefined;
 
   options: BiomeOptions;
+
+  vegetationPositions: Octree = new Octree();
 
   constructor(opts: BiomeOptions = {}) {
     if (opts.preset) {
@@ -121,5 +132,18 @@ export class Biome {
     }
 
     return undefined;
+  }
+
+  addVegetation(
+    item: VegetationItem,
+    position: Vector3,
+    normalizedHeight: number,
+    steepness: number,
+  ) {
+    this.vegetationPositions.insert(position, item);
+  }
+
+  itemsAround(position: Vector3, radius: number): Vector3[] {
+    return this.vegetationPositions.query(position, radius);
   }
 }

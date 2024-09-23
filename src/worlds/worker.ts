@@ -3,6 +3,7 @@ import {
   Vector3,
   BufferAttribute,
   Float32BufferAttribute,
+  Color,
 } from "three";
 
 import { Biome, type BiomeOptions } from "./biome";
@@ -85,6 +86,14 @@ function createGeometry(
     }
   >();
 
+  const calculatedVerticesArray: {
+    height: number;
+    scatter: Vector3;
+
+    seaHeight: number;
+    seaMorph: number;
+  }[] = new Array(faceCount);
+
   const colors = new Float32Array(vertices.count * 3);
   const oceanColors = new Float32Array(oceanVertices.count * 3);
 
@@ -126,6 +135,9 @@ function createGeometry(
     oceanF = new Vector3();
 
   const temp = new Vector3();
+
+  let normHeightMax = 0;
+  let normHeightMin = 0;
 
   for (let i = 0; i < vertices.count; i += 3) {
     a.fromBufferAttribute(vertices, i);
@@ -177,6 +189,8 @@ function createGeometry(
         calculatedVertices.set(key, move);
       }
 
+      calculatedVerticesArray[i + j] = move;
+
       normalizedHeight += move.height - 1;
       v.add(move.scatter).normalize().multiplyScalar(move.height);
       vertices.setXYZ(i + j, v.x, v.y, v.z);
@@ -201,41 +215,14 @@ function createGeometry(
     }
 
     normalizedHeight /= 3;
-    normalizedHeight = (normalizedHeight - biome.min) / (biome.max - biome.min);
-    normalizedHeight = normalizedHeight * 2 - 1;
-    // now averageHeight is between -1 and 1 (0 is sea level)
 
-    for (
-      let j = 0;
-      biome.options.vegetation && j < biome.options.vegetation.items.length;
-      j++
-    ) {
-      const vegetation = biome.options.vegetation.items[j];
-      if (Math.random() < faceSize * vegetation.density) {
-        if (
-          vegetation.minimumHeight !== undefined &&
-          normalizedHeight < vegetation.minimumHeight
-        ) {
-          continue;
-        }
+    normalizedHeight =
+      Math.min(-normalizedHeight / biome.min, 0) +
+      Math.max(normalizedHeight / biome.max, 0);
+    // now normalizedHeight should be between -1 and 1 (0 is sea level)
 
-        if (vegetation.minimumHeight === undefined && normalizedHeight < 0) {
-          continue;
-        }
-
-        if (
-          vegetation.maximumHeight !== undefined &&
-          normalizedHeight > vegetation.maximumHeight
-        ) {
-          continue;
-        }
-        if (!placedVegetation[vegetation.name]) {
-          placedVegetation[vegetation.name] = [];
-        }
-        placedVegetation[vegetation.name].push(a.clone());
-        break;
-      }
-    }
+    normHeightMax = Math.max(normHeightMax, normalizedHeight);
+    normHeightMin = Math.min(normHeightMin, normalizedHeight);
 
     // calculate new normal
     temp.crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
@@ -265,6 +252,67 @@ function createGeometry(
       colors[i * 3 + 6] = color.r;
       colors[i * 3 + 7] = color.g;
       colors[i * 3 + 8] = color.b;
+    }
+
+    // place vegetation
+    for (
+      let j = 0;
+      biome.options.vegetation && j < biome.options.vegetation.items.length;
+      j++
+    ) {
+      const vegetation = biome.options.vegetation.items[j];
+      if (Math.random() < faceSize * vegetation.density) {
+        // discard if point is below or above height limits
+        if (
+          vegetation.minimumHeight !== undefined &&
+          normalizedHeight < vegetation.minimumHeight
+        ) {
+          continue;
+        }
+        // default minimumHeight is 0 (= above sea level)
+        if (vegetation.minimumHeight === undefined && normalizedHeight < 0) {
+          continue;
+        }
+        if (
+          vegetation.maximumHeight !== undefined &&
+          normalizedHeight > vegetation.maximumHeight
+        ) {
+          continue;
+        }
+
+        // discard if point is below or above slope limits
+        if (
+          vegetation.minimumSlope !== undefined &&
+          steepness < vegetation.minimumSlope
+        ) {
+          continue;
+        }
+        if (
+          vegetation.maximumSlope !== undefined &&
+          steepness > vegetation.maximumSlope
+        ) {
+          continue;
+        }
+
+        if (!placedVegetation[vegetation.name]) {
+          placedVegetation[vegetation.name] = [];
+        }
+        let height = a.length();
+        placedVegetation[vegetation.name].push(
+          a
+            .clone()
+            .normalize()
+            .multiplyScalar(height + 0.005),
+        );
+
+        biome.addVegetation(
+          vegetation,
+          a.normalize(),
+          normalizedHeight,
+          steepness,
+        );
+        break;
+      }
     }
 
     // calculate ocean vertices
@@ -300,6 +348,64 @@ function createGeometry(
     oceanMorphNormals.push(temp.x, temp.y, temp.z);
     oceanMorphNormals.push(temp.x, temp.y, temp.z);
     oceanMorphNormals.push(temp.x, temp.y, temp.z);
+  }
+
+  console.log("normHeightMax", normHeightMax);
+  console.log("normHeightMin", normHeightMin);
+
+  const maxDist = 0.14;
+  // go through all vertices again and update height and color based on vegetation
+  for (let i = 0; i < vertices.count; i += 3) {
+    let found = false;
+    let closestDistAll = 1;
+    for (let j = 0; j < 3; j++) {
+      a.fromBufferAttribute(vertices, i + j);
+      a.normalize();
+
+      let p = biome.itemsAround(a, maxDist);
+      if (p.length > 0) {
+        // find closest point
+        let closest = p[0];
+        let closestDist = a.distanceTo(closest);
+        for (let k = 1; k < p.length; k++) {
+          let dist = a.distanceTo(p[k]);
+          if (dist < closestDist) {
+            closest = p[k];
+            closestDist = dist;
+          }
+        }
+
+        let moveInfo = calculatedVerticesArray[i + j];
+
+        a.multiplyScalar(
+          moveInfo.height + ((maxDist - closestDist) / maxDist) * 0.015,
+        );
+
+        vertices.setXYZ(i + j, a.x, a.y, a.z);
+
+        closestDistAll = Math.min(closestDist, closestDistAll);
+        found = true;
+      }
+    }
+
+    if (found) {
+      let existingColor = new Color(
+        colors[i * 3],
+        colors[i * 3 + 1],
+        colors[i * 3 + 2],
+      );
+
+      // set color
+      let newColor = new Color(0.1, 0.3, 0);
+
+      newColor.lerp(existingColor, closestDistAll / maxDist);
+
+      for (let j = 0; j < 3; j++) {
+        colors[(i + j) * 3] = newColor.r;
+        colors[(i + j) * 3 + 1] = newColor.g;
+        colors[(i + j) * 3 + 2] = newColor.b;
+      }
+    }
   }
 
   oceanSphere.morphAttributes.position[0] = new Float32BufferAttribute(

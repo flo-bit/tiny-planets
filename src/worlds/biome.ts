@@ -1,5 +1,5 @@
 import { UberNoise, type NoiseOptions } from "uber-noise";
-import { Color, Vector3 } from "three";
+import { Color, ColorRepresentation, Vector3 } from "three";
 
 import {
   ColorGradient,
@@ -10,7 +10,7 @@ import { Octree } from "./helper/octree";
 
 export type VegetationItem = {
   name: string;
-  density: number;
+  density?: number;
 
   minimumHeight?: number;
   maximumHeight?: number;
@@ -21,6 +21,14 @@ export type VegetationItem = {
   minimumDistance?: number;
   maximumDistance?: number;
   colors?: Record<string, { array?: number[] }>;
+
+  ground?: {
+    raise?: number;
+    color?: ColorRepresentation;
+    radius?: number;
+
+    noise?: NoiseOptions;
+  };
 };
 
 export type BiomeOptions = {
@@ -37,9 +45,8 @@ export type BiomeOptions = {
   tintColor?: number;
 
   vegetation?: {
-    defaults?: {
-      density?: number;
-    };
+    defaults?: Omit<Partial<VegetationItem>, "name">;
+
     items: VegetationItem[];
   };
 };
@@ -143,7 +150,10 @@ export class Biome {
     this.vegetationPositions.insert(position, item);
   }
 
-  itemsAround(position: Vector3, radius: number): Vector3[] {
+  itemsAround(
+    position: Vector3,
+    radius: number,
+  ): (Vector3 & { data: VegetationItem })[] {
     return this.vegetationPositions.query(position, radius);
   }
 }

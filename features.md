@@ -8,6 +8,7 @@
     - [ ] noise
     - [x] height
     - [ ] slope
+    - [ ] distance
 - [ ] different materials
 - [ ] make vegetation sway in the wind
 - [ ] make all random stuff dependent on seed
@@ -18,6 +19,7 @@
 
 ### water
 - [x] moving water
+- [ ] option to turn off water
 - [ ] water reflections
 - [ ] water refractions
 - [x] water caustics

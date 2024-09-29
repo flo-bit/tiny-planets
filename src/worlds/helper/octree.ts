@@ -113,16 +113,20 @@ export class Octree {
 
   // returns array of points where
   // distance between pos and point is less than dist
-  query(pos: Vector3Data, dist = 1) {
-    const points = this.queryXYZ(pos.x, pos.y, pos.z, dist);
-    for (let i = points.length - 1; i >= 0; i--) {
-      if (points[i].distanceTo(pos) > dist) points.splice(i, 1);
-    }
-    return points;
+  query(pos: Vector3Data, dist = 1): Vector3Data[] {
+    const points = this.queryBoxXYZ(pos.x, pos.y, pos.z, dist);
+
+    return points.filter((p) => p.distanceTo(pos) < dist);
   }
 
-  // vector3 free version, returns points in box around xyz
-  queryXYZ(x: number, y: number, z: number, s: number) {
+  // vector3 free version, returns points around xyz
+  queryXYZ(x: number, y: number, z: number, dist: number) {
+    const point = new Vector3(x, y, z);
+
+    return this.query(point, dist);
+  }
+
+  queryBoxXYZ(x: number, y: number, z: number, s: number) {
     const min = new Vector3(x - s, y - s, z - s),
       max = new Vector3(x + s, y + s, z + s);
     const box = new Box3(min, max);
@@ -235,7 +239,6 @@ export class Octree {
       q = this.query(opts.p, opts.min);
 
       for (const point of q) {
-        // @ts-expect-error - close is not a property of Vector3
         point.close = true;
       }
     }

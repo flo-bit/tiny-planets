@@ -185,8 +185,8 @@ const snowForest: BiomeOptions = {
     [-0.1, 0xaaccff],
   ],
   seaNoise: {
-    min: -0.005,
-    max: 0.005,
+    min: -0.0,
+    max: 0.001,
     scale: 5,
   },
 

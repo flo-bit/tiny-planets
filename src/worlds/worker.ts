@@ -6,7 +6,7 @@ import {
   Color,
 } from "three";
 
-import { Biome, type BiomeOptions } from "./biome";
+import { Biome } from "./biome";
 import { type PlanetOptions } from "./planet";
 import UberNoise from "uber-noise";
 
@@ -261,7 +261,7 @@ function createGeometry(
       j++
     ) {
       const vegetation = biome.options.vegetation.items[j];
-      if (Math.random() < faceSize * vegetation.density) {
+      if (Math.random() < faceSize * (vegetation.density ?? 1)) {
         // discard if point is below or above height limits
         if (
           vegetation.minimumHeight !== undefined &&
@@ -349,9 +349,6 @@ function createGeometry(
     oceanMorphNormals.push(temp.x, temp.y, temp.z);
     oceanMorphNormals.push(temp.x, temp.y, temp.z);
   }
-
-  console.log("normHeightMax", normHeightMax);
-  console.log("normHeightMin", normHeightMin);
 
   const maxDist = 0.14;
   // go through all vertices again and update height and color based on vegetation

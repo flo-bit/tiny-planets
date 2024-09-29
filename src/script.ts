@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Planet } from "./worlds/planet";
+import { Stars } from "./worlds/stars";
 
 const presets = ["beach", "forest", "snowForest"];
 
@@ -13,7 +14,7 @@ if (!canvas) {
   throw new Error("Canvas not found");
 }
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 10);
+const camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 30);
 camera.position.set(0, 0, 2.5);
 
 const renderer = new THREE.WebGLRenderer({
@@ -23,7 +24,6 @@ const renderer = new THREE.WebGLRenderer({
 });
 
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
 renderer.shadowMap.enabled = true;
 
 const _ = new OrbitControls(camera, renderer.domElement);
@@ -58,7 +58,6 @@ light.shadow.camera.left = -2;
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
 
-
 let total = 0;
 let lastDelta = 0;
 renderer.setAnimationLoop((delta) => {
@@ -77,6 +76,10 @@ renderer.setAnimationLoop((delta) => {
     hasPlanet = true;
   }
 });
+
+let stars = new Stars();
+
+scene.add(stars);
 
 // add keydown event listener
 document.addEventListener("keydown", (event) => {

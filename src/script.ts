@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Planet } from "./worlds/planet";
 import { Stars } from "./worlds/stars";
+import { planetPresets } from "./worlds/presets";
 
 const presets = ["beach", "forest", "snowForest"];
 
@@ -36,7 +37,7 @@ let sphereMaterial = new THREE.MeshStandardMaterial({
   wireframe: true,
   wireframeLinewidth: 10,
 });
-let planetMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+let planetMesh: THREE.Mesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
 scene.add(planetMesh);
 
 const light = new THREE.DirectionalLight();
@@ -110,12 +111,16 @@ async function createPlanet(preset: string | undefined = undefined) {
   console.time("planet");
   const planet = new Planet({
     detail: 50,
-    biome: { preset },
+    ...planetPresets[preset],
   });
   let mesh = await planet.create();
   scene.remove(planetMesh);
   scene.add(mesh);
   planetMesh = mesh;
+
+  // planetMesh.add(camera);
+  // planet.updatePosition(camera, new THREE.Vector3(0, 0, 1.1));
+
   console.timeEnd("planet");
 }
 

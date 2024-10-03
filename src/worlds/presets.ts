@@ -1,6 +1,7 @@
 import { type BiomeOptions } from "./biome";
+import { PlanetOptions } from "./planet";
 
-const beach: BiomeOptions = {
+const beachBiome: BiomeOptions = {
   noise: {
     min: -0.05,
     max: 0.05,
@@ -45,6 +46,9 @@ const beach: BiomeOptions = {
           Green: { array: [0x22851e, 0x22a51e] },
           DarkGreen: { array: [0x006400] },
         },
+        ground: {
+          color: 0x338800,
+        },
       },
       {
         name: "Rock",
@@ -58,7 +62,7 @@ const beach: BiomeOptions = {
   },
 };
 
-const forest: BiomeOptions = {
+const forestBiome: BiomeOptions = {
   noise: {
     min: -0.05,
     max: 0.05,
@@ -154,7 +158,7 @@ const forest: BiomeOptions = {
   },
 };
 
-const snowForest: BiomeOptions = {
+const snowForestBiome: BiomeOptions = {
   noise: {
     min: -0.05,
     max: 0.05,
@@ -251,7 +255,37 @@ const snowForest: BiomeOptions = {
 };
 
 export const biomePresets: Record<string, BiomeOptions> = {
-  beach,
-  forest,
-  snowForest,
+  beach: beachBiome,
+  forest: forestBiome,
+  snowForest: snowForestBiome,
+};
+
+const beachPlanet: PlanetOptions = {
+  biome: {
+    preset: "beach",
+  },
+
+  material: "caustics",
+};
+
+const forestPlanet: PlanetOptions = {
+  biome: {
+    preset: "forest",
+  },
+
+  material: "normal",
+};
+
+const snowForestPlanet: PlanetOptions = {
+  biome: {
+    preset: "snowForest",
+  },
+
+  material: "normal",
+};
+
+export const planetPresets: Record<string, PlanetOptions> = {
+  beach: beachPlanet,
+  forest: forestPlanet,
+  snowForest: snowForestPlanet,
 };

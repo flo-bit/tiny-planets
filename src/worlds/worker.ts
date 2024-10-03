@@ -6,7 +6,7 @@ import {
   Color,
 } from "three";
 
-import { Biome } from "./biome";
+import { Biome, type VegetationItem } from "./biome";
 import { type PlanetOptions } from "./planet";
 import UberNoise from "uber-noise";
 
@@ -110,7 +110,7 @@ function createGeometry(
   a.fromBufferAttribute(vertices, 0);
   b.fromBufferAttribute(vertices, 1);
 
-  // default to scatter = distance of first edge
+  // scatterAmount is based on side length of face (all faces are the same size)
   const scatterAmount = (planetOptions.scatter ?? 1) * b.distanceTo(a);
   const scatterScale = 100;
 
@@ -136,9 +136,13 @@ function createGeometry(
 
   const temp = new Vector3();
 
-  let normHeightMax = 0;
-  let normHeightMin = 0;
-
+  // go through all faces
+  // - calculate height and scatter for vertices
+  // - calculate height for ocean vertices
+  // - calculate height for ocean morph vertices
+  // - calculate color for vertices and ocean vertices
+  // - calculate normal for vertices and ocean vertices
+  // - add vegetation
   for (let i = 0; i < vertices.count; i += 3) {
     a.fromBufferAttribute(vertices, i);
     b.fromBufferAttribute(vertices, i + 1);
@@ -153,16 +157,19 @@ function createGeometry(
 
     let normalizedHeight = 0;
 
+    // go through all vertices of the face
     for (let j = 0; j < 3; j++) {
       let v = a;
       if (j === 1) v = b;
       if (j === 2) v = c;
 
+      // lets see if we already have info for this vertex
       const key = `${v.x.toFixed(5)},${v.y.toFixed(5)},${v.z.toFixed(5)}`;
-
       let move = calculatedVertices.get(key);
 
+      // if not, calculate it
       if (!move) {
+        // calculate height and scatter
         const height = biome.getHeight(v) + 1;
         const scatterX = scatterNoise.get(v);
         const scatterY = scatterNoise.get(
@@ -175,6 +182,7 @@ function createGeometry(
           v.x + scatterScale * 200,
           v.y - scatterScale * 200,
         );
+        // calculate sea height and sea morph height
         const seaHeight = biome.getSeaHeight(v) + 1;
         const secondSeaHeight = biome.getSeaHeight(v.addScalar(100)) + 1;
 
@@ -189,19 +197,24 @@ function createGeometry(
         calculatedVertices.set(key, move);
       }
 
+      // we store this info for later use (vegetation placement)
       calculatedVerticesArray[i + j] = move;
 
+      // we add height here so we can calculate the average normalized height of the face later
       normalizedHeight += move.height - 1;
+
+      // move vertex based on height and scatter
       v.add(move.scatter).normalize().multiplyScalar(move.height);
       vertices.setXYZ(i + j, v.x, v.y, v.z);
 
+      // move ocean vertex based on sea height and scatter
       let oceanV = oceanA;
       if (j === 1) oceanV = oceanB;
       if (j === 2) oceanV = oceanC;
-
       oceanV.add(move.scatter).normalize().multiplyScalar(move.seaMorph);
       oceanMorphPositions.push(oceanV.x, oceanV.y, oceanV.z);
 
+      // move ocean morph vertex based on sea height and scatter
       if (j === 0) {
         oceanD.copy(oceanV);
       } else if (j === 1) {
@@ -209,24 +222,20 @@ function createGeometry(
       } else if (j === 2) {
         oceanF.copy(oceanV);
       }
-
       oceanV.normalize().multiplyScalar(move.seaHeight);
       oceanVertices.setXYZ(i + j, oceanV.x, oceanV.y, oceanV.z);
     }
 
+    // calculate normalized height for the face (between -1 and 1, 0 is sea level)
     normalizedHeight /= 3;
-
     normalizedHeight =
       Math.min(-normalizedHeight / biome.min, 0) +
       Math.max(normalizedHeight / biome.max, 0);
     // now normalizedHeight should be between -1 and 1 (0 is sea level)
+    // this will be used for color calculation and vegetation placement
 
-    normHeightMax = Math.max(normHeightMax, normalizedHeight);
-    normHeightMin = Math.min(normHeightMin, normalizedHeight);
-
-    // calculate new normal
+    // calculate face normal
     temp.crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
-
     // flat shading, so all normals for the face are the same
     normals.setXYZ(i, temp.x, temp.y, temp.z);
     normals.setXYZ(i + 1, temp.x, temp.y, temp.z);
@@ -236,9 +245,10 @@ function createGeometry(
     // (up vector = old mid point on sphere)
     const steepness = Math.acos(Math.abs(temp.dot(mid)));
     // steepness is between 0 and PI/2
+    // this will be used for color calculation and vegetation placement
 
+    // calculate color for face
     const color = biome.getColor(mid, normalizedHeight, steepness);
-
     // flat shading, so all colors for the face are the same
     if (color) {
       colors[i * 3] = color.r;
@@ -253,6 +263,39 @@ function createGeometry(
       colors[i * 3 + 7] = color.g;
       colors[i * 3 + 8] = color.b;
     }
+
+    // calculate ocean face color
+    const oceanColor = biome.getSeaColor(mid, normalizedHeight);
+
+    if (oceanColor) {
+      oceanColors[i * 3] = oceanColor.r;
+      oceanColors[i * 3 + 1] = oceanColor.g;
+      oceanColors[i * 3 + 2] = oceanColor.b;
+
+      oceanColors[i * 3 + 3] = oceanColor.r;
+      oceanColors[i * 3 + 4] = oceanColor.g;
+      oceanColors[i * 3 + 5] = oceanColor.b;
+
+      oceanColors[i * 3 + 6] = oceanColor.r;
+      oceanColors[i * 3 + 7] = oceanColor.g;
+      oceanColors[i * 3 + 8] = oceanColor.b;
+    }
+
+    // calculate ocean normals
+    temp
+      .crossVectors(oceanB.clone().sub(oceanA), oceanC.clone().sub(oceanA))
+      .normalize();
+    oceanNormals.setXYZ(i, temp.x, temp.y, temp.z);
+    oceanNormals.setXYZ(i + 1, temp.x, temp.y, temp.z);
+    oceanNormals.setXYZ(i + 2, temp.x, temp.y, temp.z);
+
+    // calculate ocean morph normals
+    temp
+      .crossVectors(oceanE.clone().sub(oceanD), oceanF.clone().sub(oceanD))
+      .normalize();
+    oceanMorphNormals.push(temp.x, temp.y, temp.z);
+    oceanMorphNormals.push(temp.x, temp.y, temp.z);
+    oceanMorphNormals.push(temp.x, temp.y, temp.z);
 
     // place vegetation
     for (
@@ -314,40 +357,6 @@ function createGeometry(
         break;
       }
     }
-
-    // calculate ocean vertices
-    const oceanColor = biome.getSeaColor(mid, normalizedHeight);
-
-    if (oceanColor) {
-      oceanColors[i * 3] = oceanColor.r;
-      oceanColors[i * 3 + 1] = oceanColor.g;
-      oceanColors[i * 3 + 2] = oceanColor.b;
-
-      oceanColors[i * 3 + 3] = oceanColor.r;
-      oceanColors[i * 3 + 4] = oceanColor.g;
-      oceanColors[i * 3 + 5] = oceanColor.b;
-
-      oceanColors[i * 3 + 6] = oceanColor.r;
-      oceanColors[i * 3 + 7] = oceanColor.g;
-      oceanColors[i * 3 + 8] = oceanColor.b;
-    }
-
-    // calculate ocean normals
-    temp
-      .crossVectors(oceanB.clone().sub(oceanA), oceanC.clone().sub(oceanA))
-      .normalize();
-
-    oceanNormals.setXYZ(i, temp.x, temp.y, temp.z);
-    oceanNormals.setXYZ(i + 1, temp.x, temp.y, temp.z);
-    oceanNormals.setXYZ(i + 2, temp.x, temp.y, temp.z);
-
-    temp
-      .crossVectors(oceanE.clone().sub(oceanD), oceanF.clone().sub(oceanD))
-      .normalize();
-
-    oceanMorphNormals.push(temp.x, temp.y, temp.z);
-    oceanMorphNormals.push(temp.x, temp.y, temp.z);
-    oceanMorphNormals.push(temp.x, temp.y, temp.z);
   }
 
   const maxDist = 0.14;
@@ -355,6 +364,8 @@ function createGeometry(
   for (let i = 0; i < vertices.count; i += 3) {
     let found = false;
     let closestDistAll = 1;
+    let closestVegetation: VegetationItem | undefined = undefined;
+
     for (let j = 0; j < 3; j++) {
       a.fromBufferAttribute(vertices, i + j);
       a.normalize();
@@ -380,20 +391,26 @@ function createGeometry(
 
         vertices.setXYZ(i + j, a.x, a.y, a.z);
 
+        if (closestDist < closestDistAll) {
+          closestVegetation = closest.data;
+        }
+
         closestDistAll = Math.min(closestDist, closestDistAll);
         found = true;
       }
     }
 
-    if (found) {
-      let existingColor = new Color(
-        colors[i * 3],
-        colors[i * 3 + 1],
-        colors[i * 3 + 2],
-      );
+    if (!found) continue;
 
+    let existingColor = new Color(
+      colors[i * 3],
+      colors[i * 3 + 1],
+      colors[i * 3 + 2],
+    );
+
+    if (closestVegetation?.ground?.color) {
       // set color
-      let newColor = new Color(0.1, 0.3, 0);
+      let newColor = new Color(closestVegetation.ground.color);
 
       newColor.lerp(existingColor, closestDistAll / maxDist);
 

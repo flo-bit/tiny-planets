@@ -60,7 +60,7 @@ export class Biome {
 
   options: BiomeOptions;
 
-  vegetationPositions: Octree = new Octree();
+  vegetationPositions: Octree<VegetationItem> = new Octree();
 
   constructor(opts: BiomeOptions = {}) {
     if (opts.preset) {
@@ -150,10 +150,31 @@ export class Biome {
     this.vegetationPositions.insert(position, item);
   }
 
+  closestVegetationDistance(
+    position: Vector3,
+    radius: number,
+  ): number | undefined {
+    const items = this.vegetationPositions.queryBoxXYZ(
+      position.x,
+      position.y,
+      position.z,
+      radius,
+    );
+    if (items.length === 0) return undefined;
+
+    let closest = Infinity;
+    for (const item of items) {
+      const distance = position.distanceTo(item);
+      if (distance < closest) closest = distance;
+    }
+
+    return closest < radius ? closest : undefined;
+  }
+
   itemsAround(
     position: Vector3,
     radius: number,
-  ): (Vector3 & { data: VegetationItem })[] {
+  ): (Vector3 & { data?: VegetationItem })[] {
     return this.vegetationPositions.query(position, radius);
   }
 }

@@ -118,5 +118,4 @@ float snoise(vec4 v) {
     m0 = m0 * m0;
     m1 = m1 * m1;
     return 49.0 * (dot(m0 * m0, vec3(dot(p0, x0), dot(p1, x1), dot(p2, x2))) + dot(m1 * m1, vec2(dot(p3, x3), dot(p4, x4))));
-
 }`;

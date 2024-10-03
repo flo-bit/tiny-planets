@@ -12,6 +12,7 @@
 - [ ] different materials
 - [ ] make vegetation sway in the wind
 - [ ] make all random stuff dependent on seed
+- [ ] instanced vegetation
 
 ### weather
 - [ ] clouds
@@ -45,4 +46,4 @@
 - [ ] tilt shift
 
 ## other
-- [ ] 
+- [ ] walking on planet

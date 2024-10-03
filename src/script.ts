@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Planet } from "./worlds/planet";
+import { Stars } from "./worlds/stars";
+import { planetPresets } from "./worlds/presets";
 
 const presets = ["beach", "forest", "snowForest"];
 
@@ -13,7 +15,7 @@ if (!canvas) {
   throw new Error("Canvas not found");
 }
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 10);
+const camera = new THREE.PerspectiveCamera(70, width / height, 0.01, 30);
 camera.position.set(0, 0, 2.5);
 
 const renderer = new THREE.WebGLRenderer({
@@ -23,7 +25,6 @@ const renderer = new THREE.WebGLRenderer({
 });
 
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-
 renderer.shadowMap.enabled = true;
 
 const _ = new OrbitControls(camera, renderer.domElement);
@@ -36,7 +37,7 @@ let sphereMaterial = new THREE.MeshStandardMaterial({
   wireframe: true,
   wireframeLinewidth: 10,
 });
-let planetMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+let planetMesh: THREE.Mesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
 scene.add(planetMesh);
 
 const light = new THREE.DirectionalLight();
@@ -58,7 +59,6 @@ light.shadow.camera.left = -2;
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
 scene.add(ambientLight);
 
-
 let total = 0;
 let lastDelta = 0;
 renderer.setAnimationLoop((delta) => {
@@ -77,6 +77,10 @@ renderer.setAnimationLoop((delta) => {
     hasPlanet = true;
   }
 });
+
+let stars = new Stars();
+
+scene.add(stars);
 
 // add keydown event listener
 document.addEventListener("keydown", (event) => {
@@ -107,12 +111,16 @@ async function createPlanet(preset: string | undefined = undefined) {
   console.time("planet");
   const planet = new Planet({
     detail: 50,
-    biome: { preset },
+    ...planetPresets[preset],
   });
   let mesh = await planet.create();
   scene.remove(planetMesh);
   scene.add(mesh);
   planetMesh = mesh;
+
+  // planetMesh.add(camera);
+  // planet.updatePosition(camera, new THREE.Vector3(0, 0, 1.1));
+
   console.timeEnd("planet");
 }
 

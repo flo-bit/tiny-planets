@@ -11,8 +11,9 @@ import {
 import { Biome, type BiomeOptions } from "./biome";
 import { loadModels } from "./models";
 
-import oceansCausticMaterial from "./materials/OceanCausticsMaterial";
+import { PlanetMaterialWithCaustics } from "./materials/OceanCausticsMaterial";
 import { createAtmosphereMaterial } from "./materials/AtmosphereMaterial";
+import { createBufferGeometry } from "./helper/helper";
 
 export type PlanetOptions = {
   scatter?: number;
@@ -22,9 +23,12 @@ export type PlanetOptions = {
   detail?: number;
 
   atmosphere?: {
+    enabled?: boolean;
     color?: Vector3;
     height?: number;
   };
+
+  material?: "normal" | "caustics";
 
   biome?: BiomeOptions;
 };
@@ -73,7 +77,7 @@ export class Planet {
       requestId: number;
     };
   }) {
-    const { type, data, requestId } = event.data;
+    const { data, requestId } = event.data;
 
     const callback = this.callbacks[requestId];
     if (!callback) {
@@ -81,50 +85,38 @@ export class Planet {
       return;
     }
 
-    if (type === "geometry") {
-      const geometry = new BufferGeometry();
-      const oceanGeometry = new BufferGeometry();
-      geometry.setAttribute(
-        "position",
-        new Float32BufferAttribute(new Float32Array(data.positions), 3),
-      );
-      geometry.setAttribute(
-        "color",
-        new Float32BufferAttribute(new Float32Array(data.colors), 3),
-      );
-      geometry.setAttribute(
-        "normal",
-        new Float32BufferAttribute(new Float32Array(data.normals), 3),
-      );
+    const geometry = createBufferGeometry(
+      data.positions,
+      data.colors,
+      data.normals,
+    );
 
-      oceanGeometry.setAttribute(
-        "position",
-        new Float32BufferAttribute(new Float32Array(data.oceanPositions), 3),
-      );
-      oceanGeometry.setAttribute(
-        "color",
-        new Float32BufferAttribute(new Float32Array(data.oceanColors), 3),
-      );
-      oceanGeometry.setAttribute(
-        "normal",
-        new Float32BufferAttribute(new Float32Array(data.oceanNormals), 3),
-      );
-      // set morph targets
-      oceanGeometry.morphAttributes.position = [
-        new Float32BufferAttribute(
-          new Float32Array(data.oceanMorphPositions),
-          3,
-        ),
-      ];
-      oceanGeometry.morphAttributes.normal = [
-        new Float32BufferAttribute(new Float32Array(data.oceanMorphNormals), 3),
-      ];
+    const oceanGeometry = createBufferGeometry(
+      data.oceanPositions,
+      data.oceanColors,
+      data.oceanNormals,
+    );
 
-      this.vegetationPositions = data.vegetation;
+    oceanGeometry.morphAttributes.position = [
+      new Float32BufferAttribute(data.oceanMorphPositions, 3),
+    ];
+    oceanGeometry.morphAttributes.normal = [
+      new Float32BufferAttribute(data.oceanMorphNormals, 3),
+    ];
 
-      const planetMesh = new Mesh(geometry, oceansCausticMaterial);
-      planetMesh.castShadow = true;
+    this.vegetationPositions = data.vegetation;
 
+    const materialOptions = { vertexColors: true };
+
+    const material =
+      this.options.material === "caustics"
+        ? new PlanetMaterialWithCaustics(materialOptions)
+        : new MeshStandardMaterial(materialOptions);
+
+    const planetMesh = new Mesh(geometry, material);
+    planetMesh.castShadow = true;
+
+    if (this.options.material === "caustics") {
       planetMesh.onBeforeRender = (
         renderer,
         scene,
@@ -132,41 +124,41 @@ export class Planet {
         geometry,
         material,
       ) => {
-        if (material.userData.shader?.uniforms?.time) {
-          material.userData.shader.uniforms.time.value =
-            performance.now() / 1000;
+        if (material instanceof PlanetMaterialWithCaustics) {
+          material.update();
         }
-        //material.userData.shader.uniforms.time.value = performance.now() / 1000;
       };
-
-      const oceanMesh = new Mesh(
-        oceanGeometry,
-        new MeshStandardMaterial({
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.7,
-          metalness: 0.5,
-          roughness: 0.5,
-        }),
-      );
-
-      planetMesh.add(oceanMesh);
-      oceanMesh.onBeforeRender = (
-        renderer,
-        scene,
-        camera,
-        geometry,
-        material,
-      ) => {
-        // update morph targets
-        if (oceanMesh.morphTargetInfluences)
-          oceanMesh.morphTargetInfluences[0] =
-            Math.sin(performance.now() / 1000) * 0.5 + 0.5;
-      };
-
-      this.addAtmosphere(planetMesh);
-      callback(planetMesh);
     }
+
+    const oceanMesh = new Mesh(
+      oceanGeometry,
+      new MeshStandardMaterial({
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.7,
+        metalness: 0.5,
+        roughness: 0.5,
+      }),
+    );
+
+    planetMesh.add(oceanMesh);
+    oceanMesh.onBeforeRender = (
+      renderer,
+      scene,
+      camera,
+      geometry,
+      material,
+    ) => {
+      // update morph targets
+      if (oceanMesh.morphTargetInfluences)
+        oceanMesh.morphTargetInfluences[0] =
+          Math.sin(performance.now() / 1000) * 0.5 + 0.5;
+    };
+
+    if (this.options.atmosphere?.enabled !== false) {
+      this.addAtmosphere(planetMesh);
+    }
+    callback(planetMesh);
 
     delete this.callbacks[requestId];
   }
@@ -193,7 +185,7 @@ export class Planet {
     const planet = await planetPromise;
 
     for (let i = 0; i < loaded.length - 1; i++) {
-      const models = await loaded[i];
+      const models = (await loaded[i]) as Object3D[];
       const name = models[0].userData.name;
 
       const positions = this.vegetationPositions?.[name];
@@ -214,7 +206,7 @@ export class Planet {
         model.traverse((child) => {
           if (child instanceof Mesh) {
             let color = item?.colors?.[child.material.name];
-            if (color && color.array) {
+            if (color?.array) {
               let randomColor =
                 color.array[Math.floor(Math.random() * color.array.length)];
               child.material.color.setHex(randomColor);

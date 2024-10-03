@@ -8,9 +8,11 @@
     - [ ] noise
     - [x] height
     - [ ] slope
+    - [ ] distance
 - [ ] different materials
 - [ ] make vegetation sway in the wind
 - [ ] make all random stuff dependent on seed
+- [ ] instanced vegetation
 
 ### weather
 - [ ] clouds
@@ -18,6 +20,7 @@
 
 ### water
 - [x] moving water
+- [ ] option to turn off water
 - [ ] water reflections
 - [ ] water refractions
 - [x] water caustics
@@ -43,4 +46,4 @@
 - [ ] tilt shift
 
 ## other
-- [ ] 
+- [ ] walking on planet

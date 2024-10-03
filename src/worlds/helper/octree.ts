@@ -25,12 +25,10 @@ export type OctreeOptions = {
   capacity?: number;
 };
 
-export type Vector3Data = Vector3 & { data?: unknown };
-
-export class Octree {
+export class Octree<T = unknown> {
   boundary: Box3;
 
-  points: Vector3[];
+  points: (Vector3 & { data?: T })[];
 
   capacity: number;
 
@@ -113,16 +111,20 @@ export class Octree {
 
   // returns array of points where
   // distance between pos and point is less than dist
-  query(pos: Vector3Data, dist = 1) {
-    const points = this.queryXYZ(pos.x, pos.y, pos.z, dist);
-    for (let i = points.length - 1; i >= 0; i--) {
-      if (points[i].distanceTo(pos) > dist) points.splice(i, 1);
-    }
-    return points;
+  query(pos: Vector3 & { data?: T }, dist = 1): (Vector3 & { data?: T })[] {
+    const points = this.queryBoxXYZ(pos.x, pos.y, pos.z, dist);
+
+    return points.filter((p) => p.distanceTo(pos) < dist);
   }
 
-  // vector3 free version, returns points in box around xyz
-  queryXYZ(x: number, y: number, z: number, s: number) {
+  // vector3 free version, returns points around xyz
+  queryXYZ(x: number, y: number, z: number, dist: number) {
+    const point = new Vector3(x, y, z);
+
+    return this.query(point, dist);
+  }
+
+  queryBoxXYZ(x: number, y: number, z: number, s: number) {
     const min = new Vector3(x - s, y - s, z - s),
       max = new Vector3(x + s, y + s, z + s);
     const box = new Box3(min, max);
@@ -130,7 +132,7 @@ export class Octree {
     return this.queryBox(box);
   }
 
-  queryBox(box: Box3, found: Vector3Data[] = []) {
+  queryBox(box: Box3, found: (Vector3 & { data?: T })[] = []) {
     found ??= [];
 
     if (!box.intersectsBox(this.boundary)) return found;
@@ -152,16 +154,16 @@ export class Octree {
   }
 
   // insert point with optional data (sets vec.data = data)
-  insert(pos: Vector3Data, data: unknown = undefined) {
+  insert(pos: Vector3 & { data?: T }, data: T | undefined = undefined) {
     return this.insertPoint(pos, data);
   }
 
   // vector3 free version
-  insertXYZ(x: number, y: number, z: number, data: unknown = undefined) {
+  insertXYZ(x: number, y: number, z: number, data: T | undefined = undefined) {
     return this.insertPoint(new Vector3(x, y, z), data);
   }
 
-  insertPoint(p: Vector3, data: unknown = undefined) {
+  insertPoint(p: Vector3, data: T | undefined = undefined) {
     p = p.clone();
 
     // @ts-expect-error - data is not a property of Vector3
@@ -235,7 +237,6 @@ export class Octree {
       q = this.query(opts.p, opts.min);
 
       for (const point of q) {
-        // @ts-expect-error - close is not a property of Vector3
         point.close = true;
       }
     }
@@ -278,7 +279,7 @@ export class Octree {
     return boxes;
   }
 
-  all(arr: Vector3Data[] = []) {
+  all(arr: (Vector3 & { data?: T })[] = []) {
     arr ??= [];
     for (const p of this.points) {
       arr.push(p);

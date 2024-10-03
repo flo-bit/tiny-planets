@@ -9,6 +9,7 @@ import {
 import { Biome, type VegetationItem } from "./biome";
 import { type PlanetOptions } from "./planet";
 import UberNoise from "uber-noise";
+import { type VertexInfo } from "./types";
 
 onmessage = function (e) {
   const { type, data, requestId } = e.data;
@@ -75,24 +76,11 @@ function createGeometry(
   const faceSize = (Math.PI * 4) / faceCount;
   console.log("faces:", faceCount);
 
-  const calculatedVertices = new Map<
-    string,
-    {
-      height: number;
-      scatter: Vector3;
-
-      seaHeight: number;
-      seaMorph: number;
-    }
-  >();
-
-  const calculatedVerticesArray: {
-    height: number;
-    scatter: Vector3;
-
-    seaHeight: number;
-    seaMorph: number;
-  }[] = new Array(faceCount);
+  // store calculated vertices so we don't have to recalculate them
+  // once store by hashed position (so we can find vertices of different faces that have the same position)
+  const calculatedVertices = new Map<string, VertexInfo>();
+  // and once by index for vegetation placement
+  const calculatedVerticesArray: VertexInfo[] = new Array(faceCount);
 
   const colors = new Float32Array(vertices.count * 3);
   const oceanColors = new Float32Array(oceanVertices.count * 3);
@@ -110,8 +98,10 @@ function createGeometry(
   a.fromBufferAttribute(vertices, 0);
   b.fromBufferAttribute(vertices, 1);
 
-  // scatterAmount is based on side length of face (all faces are the same size)
-  const scatterAmount = (planetOptions.scatter ?? 1) * b.distanceTo(a);
+  const faceSideLength = a.distanceTo(b);
+
+  // scatterAmount is based on side length of face (all faces have the same size)
+  const scatterAmount = (planetOptions.scatter ?? 1.2) * faceSideLength;
   const scatterScale = 100;
 
   const scatterNoise = new UberNoise({
@@ -360,66 +350,53 @@ function createGeometry(
   }
 
   const maxDist = 0.14;
+
+  const color = new Color();
+
   // go through all vertices again and update height and color based on vegetation
   for (let i = 0; i < vertices.count; i += 3) {
-    let found = false;
-    let closestDistAll = 1;
-    let closestVegetation: VegetationItem | undefined = undefined;
+    a.fromBufferAttribute(vertices, i);
+    a.normalize();
+    b.fromBufferAttribute(vertices, i + 1);
+    b.normalize();
+    c.fromBufferAttribute(vertices, i + 2);
+    c.normalize();
 
-    for (let j = 0; j < 3; j++) {
-      a.fromBufferAttribute(vertices, i + j);
-      a.normalize();
+    color.setRGB(colors[i * 3], colors[i * 3 + 1], colors[i * 3 + 2]);
 
-      let p = biome.itemsAround(a, maxDist);
-      if (p.length > 0) {
-        // find closest point
-        let closest = p[0];
-        let closestDist = a.distanceTo(closest);
-        for (let k = 1; k < p.length; k++) {
-          let dist = a.distanceTo(p[k]);
-          if (dist < closestDist) {
-            closest = p[k];
-            closestDist = dist;
-          }
-        }
-
-        let moveInfo = calculatedVerticesArray[i + j];
-
-        a.multiplyScalar(
-          moveInfo.height + ((maxDist - closestDist) / maxDist) * 0.015,
-        );
-
-        vertices.setXYZ(i + j, a.x, a.y, a.z);
-
-        if (closestDist < closestDistAll) {
-          closestVegetation = closest.data;
-        }
-
-        closestDistAll = Math.min(closestDist, closestDistAll);
-        found = true;
-      }
-    }
-
-    if (!found) continue;
-
-    let existingColor = new Color(
-      colors[i * 3],
-      colors[i * 3 + 1],
-      colors[i * 3 + 2],
+    const output = biome.vegetationHeightAndColorForFace(
+      a,
+      b,
+      c,
+      color,
+      faceSideLength,
     );
 
-    if (closestVegetation?.ground?.color) {
-      // set color
-      let newColor = new Color(closestVegetation.ground.color);
+    const moveDataA = calculatedVerticesArray[i];
+    const moveDataB = calculatedVerticesArray[i + 1];
+    const moveDataC = calculatedVerticesArray[i + 2];
 
-      newColor.lerp(existingColor, closestDistAll / maxDist);
+    // update height based on vegetation
+    a.normalize().multiplyScalar(moveDataA.height + output.heightA);
+    b.normalize().multiplyScalar(moveDataB.height + output.heightB);
+    c.normalize().multiplyScalar(moveDataC.height + output.heightC);
 
-      for (let j = 0; j < 3; j++) {
-        colors[(i + j) * 3] = newColor.r;
-        colors[(i + j) * 3 + 1] = newColor.g;
-        colors[(i + j) * 3 + 2] = newColor.b;
-      }
-    }
+    vertices.setXYZ(i, a.x, a.y, a.z);
+    vertices.setXYZ(i + 1, b.x, b.y, b.z);
+    vertices.setXYZ(i + 2, c.x, c.y, c.z);
+
+    // update color based on vegetation
+    colors[i * 3] = output.color.r;
+    colors[i * 3 + 1] = output.color.g;
+    colors[i * 3 + 2] = output.color.b;
+
+    colors[i * 3 + 3] = output.color.r;
+    colors[i * 3 + 4] = output.color.g;
+    colors[i * 3 + 5] = output.color.b;
+
+    colors[i * 3 + 6] = output.color.r;
+    colors[i * 3 + 7] = output.color.g;
+    colors[i * 3 + 8] = output.color.b;
   }
 
   oceanSphere.morphAttributes.position[0] = new Float32BufferAttribute(

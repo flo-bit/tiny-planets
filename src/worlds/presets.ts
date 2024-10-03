@@ -38,6 +38,14 @@ const beachBiome: BiomeOptions = {
   vegetation: {
     items: [
       {
+        name: "Rock",
+        density: 50,
+        minimumHeight: 0.1,
+        colors: {
+          Gray: { array: [0x775544] },
+        },
+      },
+      {
         name: "PalmTree",
         density: 50,
         minimumHeight: 0.1,
@@ -47,15 +55,9 @@ const beachBiome: BiomeOptions = {
           DarkGreen: { array: [0x006400] },
         },
         ground: {
-          color: 0x338800,
-        },
-      },
-      {
-        name: "Rock",
-        density: 10,
-        minimumHeight: 0.1,
-        colors: {
-          Gray: { array: [0x775544] },
+          color: 0x229900,
+          radius: 0.1,
+          raise: 0.01,
         },
       },
     ],
@@ -280,8 +282,6 @@ const snowForestPlanet: PlanetOptions = {
   biome: {
     preset: "snowForest",
   },
-
-  material: "normal",
 };
 
 export const planetPresets: Record<string, PlanetOptions> = {

@@ -7,6 +7,7 @@ import {
 } from "./helper/colorgradient";
 import { biomePresets } from "./presets";
 import { Octree } from "./helper/octree";
+import { type VertexInfo } from "./types";
 
 export type VegetationItem = {
   name: string;
@@ -65,6 +66,7 @@ export class Biome {
   constructor(opts: BiomeOptions = {}) {
     if (opts.preset) {
       const preset = biomePresets[opts.preset];
+
       if (preset) {
         opts = {
           ...preset,
@@ -175,6 +177,87 @@ export class Biome {
     position: Vector3,
     radius: number,
   ): (Vector3 & { data?: VegetationItem })[] {
-    return this.vegetationPositions.query(position, radius);
+    return this.vegetationPositions.queryBoxXYZ(
+      position.x,
+      position.y,
+      position.z,
+      radius,
+    );
+  }
+
+  maxVegetationRadius(): number {
+    let max = 0;
+    for (const item of this.options.vegetation?.items ?? []) {
+      if (item.ground?.radius) {
+        max = Math.max(max, item.ground.radius);
+      }
+    }
+
+    return max;
+  }
+
+  vegetationHeightAndColorForFace(
+    a: Vector3,
+    b: Vector3,
+    c: Vector3,
+    color: Color,
+    sideLength: number,
+  ): {
+    heightA: number;
+    heightB: number;
+    heightC: number;
+    color: Color;
+  } {
+    const maxDist = this.maxVegetationRadius();
+    // use a to find all vegetation items, we add sideLength so that we also find vegetation from b and c
+    // that otherwise would be missed, because they are too far away from a
+    const vegetations = this.itemsAround(a, maxDist + sideLength * 2);
+
+    // go through a, b and c and add heights for all vegetation items that are close enough (distance is closer than item.ground.radius)
+    let heightA = 0;
+    let heightB = 0;
+    let heightC = 0;
+
+    let all = [a, b, c];
+    for (let j = 0; j < 3; j++) {
+      let p = all[j];
+
+      for (const vegetation of vegetations) {
+        if (!vegetation.data?.ground?.radius) continue;
+
+        let distance = p.distanceTo(vegetation);
+
+        if (distance < vegetation.data.ground?.radius) {
+          let amount = Math.max(
+            0,
+            1 - distance / vegetation.data.ground.radius,
+          );
+
+          amount = Math.pow(amount, 0.5);
+
+          let height = vegetation.data.ground?.raise ?? 0;
+          height *= amount;
+
+          if (j === 0) heightA += height;
+          if (j === 1) heightB += height;
+          if (j === 2) heightC += height;
+
+          if (!vegetation.data.ground.color) continue;
+
+          let newColor = new Color(vegetation.data.ground.color);
+
+          // only lerp a third of the way, because we have three vertices
+          // so if all vertices are close enough, we lerp 3 times
+          color.lerp(newColor, amount / 3);
+        }
+      }
+    }
+
+    return {
+      heightA,
+      heightB,
+      heightC,
+      color,
+    };
   }
 }

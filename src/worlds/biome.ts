@@ -1,5 +1,5 @@
 import { UberNoise, type NoiseOptions } from "uber-noise";
-import { Color, ColorRepresentation, Vector3 } from "three";
+import { Color, type ColorRepresentation, Vector3 } from "three";
 
 import {
   ColorGradient,
@@ -7,7 +7,6 @@ import {
 } from "./helper/colorgradient";
 import { biomePresets } from "./presets";
 import { Octree } from "./helper/octree";
-import { type VertexInfo } from "./types";
 
 export type VegetationItem = {
   name: string;

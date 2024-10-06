@@ -1,5 +1,5 @@
 import { type BiomeOptions } from "./biome";
-import { PlanetOptions } from "./planet";
+import { type PlanetOptions } from "./planet";
 
 const beachBiome: BiomeOptions = {
   noise: {

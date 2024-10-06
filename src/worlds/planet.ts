@@ -31,6 +31,8 @@ export type PlanetOptions = {
   material?: "normal" | "caustics";
 
   biome?: BiomeOptions;
+
+  shape?: "sphere" | "plane";
 };
 
 export class Planet {
@@ -46,7 +48,14 @@ export class Planet {
 
   vegetationPositions?: Record<string, Vector3[]>;
 
+  shape: "sphere" | "plane" = "sphere";
+
+  tempQuaternion = new Quaternion();
+
   constructor(options: PlanetOptions = {}) {
+    this.shape = options.shape ?? this.shape;
+    options.shape = this.shape;
+
     this.options = options;
 
     this.biome = new Biome(options.biome);
@@ -110,7 +119,10 @@ export class Planet {
 
     const material =
       this.options.material === "caustics"
-        ? new PlanetMaterialWithCaustics(materialOptions)
+        ? new PlanetMaterialWithCaustics({
+            ...materialOptions,
+            shape: this.shape,
+          })
         : new MeshStandardMaterial(materialOptions);
 
     const planetMesh = new Mesh(geometry, material);
@@ -257,14 +269,15 @@ export class Planet {
   updatePosition(item: Object3D, pos: Vector3) {
     item.position.copy(pos);
 
-    const currentRotation = new Quaternion();
-    const a = item.up.clone().normalize();
-    const b = pos.clone().normalize();
+    if (this.shape === "sphere") {
+      const a = item.up.clone().normalize();
+      const b = pos.clone().normalize();
 
-    currentRotation.setFromUnitVectors(a, b);
+      this.tempQuaternion.setFromUnitVectors(a, b);
 
-    item.quaternion.copy(currentRotation);
+      item.quaternion.copy(this.tempQuaternion);
 
-    item.up = b;
+      item.up = b;
+    }
   }
 }

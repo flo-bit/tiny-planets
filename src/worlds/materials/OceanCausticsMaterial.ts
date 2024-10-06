@@ -5,7 +5,9 @@ import {
 import { noise } from "./noise";
 
 export class PlanetMaterialWithCaustics extends MeshStandardMaterial {
-  constructor(parameters: MeshStandardMaterialParameters) {
+  constructor(
+    parameters: MeshStandardMaterialParameters & { shape: "sphere" | "plane" },
+  ) {
     super(parameters);
 
     this.onBeforeCompile = (shader) => {
@@ -48,11 +50,11 @@ export class PlanetMaterialWithCaustics extends MeshStandardMaterial {
         "#include <color_fragment>",
         `#include <color_fragment>
         vec3 pos = vPos * 3.0;
-        float len = length(vPos);
+        ${parameters.shape == "plane" ? "float len = vPos.y;" : "float len = length(vPos) - 1.0;"}
         // Fade in
-        float fadeIn = smoothstep(0.96, 0.985, len);
+        float fadeIn = smoothstep(-0.04, -0.015, len);
         // Fade out
-        float fadeOut = 1.0 - smoothstep(0.994, 0.999, len);
+        float fadeOut = 1.0 - smoothstep(-0.006, -0.001, len);
         float causticIntensity = fadeIn * fadeOut * 0.7;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), causticIntensity * smoothstep(0.0, 1.0, caustics(vec4(pos, time * 0.05))));
     `,

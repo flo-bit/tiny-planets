@@ -61,10 +61,12 @@ scene.add(ambientLight);
 
 let total = 0;
 let lastDelta = 0;
+
+let rotate = true;
 renderer.setAnimationLoop((delta) => {
   renderer.render(scene, camera);
 
-  planetMesh.rotation.y += 0.001;
+  if (rotate) planetMesh.rotation.y += 0.001;
 
   if (lastDelta > 0) {
     total += delta - lastDelta;
@@ -90,6 +92,10 @@ document.addEventListener("keydown", (event) => {
     createPlanet("forest");
   } else if (event.key === "3") {
     createPlanet("snowForest");
+  }
+
+  if (event.key === " ") {
+    rotate = !rotate;
   }
 });
 
